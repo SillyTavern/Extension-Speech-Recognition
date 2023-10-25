@@ -3,7 +3,7 @@ TODO:
  - try pseudo streaming audio by just sending chunk every X seconds and asking VOSK if it is full text.
 */
 
-import { saveSettingsDebounced } from "../../../../script.js";
+import { saveSettingsDebounced, sendMessageAsUser } from "../../../../script.js";
 import { getContext, extension_settings, ModuleWorkerWrapper } from "../../../extensions.js";
 import { VoskSttProvider } from './vosk.js'
 import { WhisperSttProvider } from './whisper.js'
@@ -159,19 +159,8 @@ async function processTranscript(transcript) {
                 case "auto_send":
                     $('#send_textarea').val("") // clear message area to avoid double message
 
-                    console.debug(DEBUG_PREFIX+"Sending message")
-                    const context = getContext();
-                    const messageText = transcriptFormatted;
-                    const message = {
-                        name: context.name1,
-                        is_user: true,
-                        send_date: getMessageTimeStamp(),
-                        mes: messageText,
-                    };
-                    context.chat.push(message);
-                    context.addOneMessage(message);
-
-                    await context.generate();
+                    sendMessageAsUser(transcriptFormatted);
+                    await getContext().generate();
 
                     $('#debug_output').text("<SST-module DEBUG>: message sent: \""+ transcriptFormatted +"\"");
                     break;
