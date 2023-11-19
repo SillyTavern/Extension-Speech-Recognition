@@ -12,10 +12,11 @@ class StreamingSttProvider {
 
     defaultSettings = {
         triggerWordsText: "",
-        triggerWords : [],
-        triggerWordsEnabled : false,
+        triggerWords: [],
+        triggerWordsEnabled: false,
         triggerWordsIncluded: false,
-        debug : false,
+        debug: false,
+        language: '',
     }
 
     get settingsHtml() {
@@ -43,27 +44,27 @@ class StreamingSttProvider {
     onSettingsChange() {
         this.settings.triggerWordsText = $('#speech_recognition_streaming_trigger_words').val();
         let array = $('#speech_recognition_streaming_trigger_words').val().split(",");
-        array = array.map(element => {return element.trim().toLowerCase();});
+        array = array.map(element => { return element.trim().toLowerCase(); });
         array = array.filter((str) => str !== '');
         this.settings.triggerWords = array;
         this.settings.triggerWordsEnabled = $("#speech_recognition_streaming_trigger_words_enabled").is(':checked');
         this.settings.triggerWordsIncluded = $("#speech_recognition_trigger_words_included").is(':checked');
         this.settings.debug = $("#speech_recognition_streaming_debug").is(':checked');
-        console.debug(DEBUG_PREFIX+" Updated settings: ", this.settings);
+        console.debug(DEBUG_PREFIX + " Updated settings: ", this.settings);
         this.loadSettings(this.settings);
     }
 
     loadSettings(settings) {
         // Populate Provider UI given input settings
         if (Object.keys(settings).length == 0) {
-            console.debug(DEBUG_PREFIX+"Using default Whisper STT extension settings")
+            console.debug(DEBUG_PREFIX + "Using default Whisper STT extension settings")
         }
 
         // Only accept keys defined in defaultSettings
         this.settings = this.defaultSettings
 
-        for (const key in settings){
-            if (key in this.settings){
+        for (const key in settings) {
+            if (key in this.settings) {
                 this.settings[key] = settings[key]
             } else {
                 throw `Invalid setting passed to STT extension: ${key}`
@@ -71,17 +72,18 @@ class StreamingSttProvider {
         }
 
         $("#speech_recognition_streaming_trigger_words").val(this.settings.triggerWordsText);
-        $("#speech_recognition_streaming_trigger_words_enabled").prop('checked',this.settings.triggerWordsEnabled);
-        $("#speech_recognition_trigger_words_included").prop('checked',this.settings.triggerWordsIncluded);
-        $("#speech_recognition_streaming_debug").prop('checked',this.settings.debug);
+        $("#speech_recognition_streaming_trigger_words_enabled").prop('checked', this.settings.triggerWordsEnabled);
+        $("#speech_recognition_trigger_words_included").prop('checked', this.settings.triggerWordsIncluded);
+        $("#speech_recognition_streaming_debug").prop('checked', this.settings.debug);
+        $('#speech_recognition_language').val(this.settings.language);
 
-        console.debug(DEBUG_PREFIX+"streaming STT settings loaded")
+        console.debug(DEBUG_PREFIX + "streaming STT settings loaded")
     }
 
     async getUserMessage() {
         // Return if module is not loaded
         if (!modules.includes('streaming-stt')) {
-            console.debug(DEBUG_PREFIX+"Module streaming-stt must be activated in Sillytavern Extras for streaming user voice.")
+            console.debug(DEBUG_PREFIX + "Module streaming-stt must be activated in Sillytavern Extras for streaming user voice.")
             return "";
         }
 
@@ -94,11 +96,14 @@ class StreamingSttProvider {
                 'Content-Type': 'application/json',
                 'Bypass-Tunnel-Reminder': 'bypass',
             },
-            body: JSON.stringify({ text: "" }),
+            body: JSON.stringify({
+                text: "",
+                language: this.settings.language,
+            }),
         });
 
         if (!apiResult.ok) {
-            toastr.error(apiResult.statusText, DEBUG_PREFIX+'STT Generation Failed  (streaming)', { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true });
+            toastr.error(apiResult.statusText, DEBUG_PREFIX + 'STT Generation Failed  (streaming)', { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true });
             throw new Error(`HTTP ${apiResult.status}: ${await apiResult.text()}`);
         }
 

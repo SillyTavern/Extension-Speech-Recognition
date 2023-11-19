@@ -6,10 +6,10 @@ TODO:
 import { saveSettingsDebounced, sendMessageAsUser } from "../../../../script.js";
 import { getContext, extension_settings, ModuleWorkerWrapper } from "../../../extensions.js";
 import { VoskSttProvider } from './vosk.js'
-import { WhisperSttProvider } from './whisper.js'
+import { WhisperExtrasSttProvider } from './whisper-extras.js'
+import { WhisperOpenAISttProvider } from './whisper-openai.js'
 import { BrowserSttProvider } from './browser.js'
 import { StreamingSttProvider } from './streaming.js'
-import { getMessageTimeStamp } from "../../../RossAscends-mods.js";
 export { MODULE_NAME };
 
 const MODULE_NAME = 'Speech Recognition';
@@ -21,7 +21,8 @@ let inApiCall = false;
 let sttProviders = {
     None: null,
     Browser: BrowserSttProvider,
-    Whisper: WhisperSttProvider,
+    'Whisper (Extras)': WhisperExtrasSttProvider,
+    'Whisper (OpenAI)': WhisperOpenAISttProvider,
     Vosk: VoskSttProvider,
     Streaming: StreamingSttProvider,
 }
@@ -45,18 +46,17 @@ async function moduleWorker() {
 
     try {
         inApiCall = true;
-        const userMessageOriginal =  await sttProvider.getUserMessage();
+        const userMessageOriginal = await sttProvider.getUserMessage();
         let userMessageFormatted = userMessageOriginal.trim();
 
-        if (userMessageFormatted.length > 0)
-        {
-            console.debug(DEBUG_PREFIX+"recorded transcript: \""+userMessageFormatted+"\"");
+        if (userMessageFormatted.length > 0) {
+            console.debug(DEBUG_PREFIX + "recorded transcript: \"" + userMessageFormatted + "\"");
 
             let userMessageLower = userMessageFormatted.toLowerCase();
             // remove punctuation
             let userMessageRaw = userMessageLower.replace(/[^\w\s\']|_/g, "").replace(/\s+/g, " ");
 
-            console.debug(DEBUG_PREFIX+"raw transcript:",userMessageRaw);
+            console.debug(DEBUG_PREFIX + "raw transcript:", userMessageRaw);
 
             // Detect trigger words
             let messageStart = -1;
@@ -67,11 +67,11 @@ async function moduleWorker() {
                     const triggerPos = userMessageRaw.indexOf(triggerWord.toLowerCase());
 
                     // Trigger word not found or not starting message and just a substring
-                    if (triggerPos == -1){ // | (triggerPos > 0 & userMessageFormatted[triggerPos-1] != " ")) {
-                        console.debug(DEBUG_PREFIX+"trigger word not found: ", triggerWord);
+                    if (triggerPos == -1) { // | (triggerPos > 0 & userMessageFormatted[triggerPos-1] != " ")) {
+                        console.debug(DEBUG_PREFIX + "trigger word not found: ", triggerWord);
                     }
                     else {
-                        console.debug(DEBUG_PREFIX+"Found trigger word: ", triggerWord, " at index ", triggerPos);
+                        console.debug(DEBUG_PREFIX + "Found trigger word: ", triggerWord, " at index ", triggerPos);
                         if (triggerPos < messageStart || messageStart == -1) { // & (triggerPos + triggerWord.length) < userMessageFormatted.length)) {
                             messageStart = triggerPos; // + triggerWord.length + 1;
 
@@ -85,21 +85,21 @@ async function moduleWorker() {
             }
 
             if (messageStart == -1) {
-                console.debug(DEBUG_PREFIX+"message ignored, no trigger word preceding a message. Voice transcript: \""+ userMessageOriginal +"\"");
+                console.debug(DEBUG_PREFIX + "message ignored, no trigger word preceding a message. Voice transcript: \"" + userMessageOriginal + "\"");
                 if (extension_settings.speech_recognition.Streaming.debug) {
                     toastr.info(
-                        "No trigger word preceding a message. Voice transcript: \""+ userMessageOriginal +"\"",
-                        DEBUG_PREFIX+"message ignored.",
+                        "No trigger word preceding a message. Voice transcript: \"" + userMessageOriginal + "\"",
+                        DEBUG_PREFIX + "message ignored.",
                         { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true },
                     );
                 }
             }
-            else{
+            else {
                 userMessageFormatted = userMessageFormatted.substring(messageStart);
                 // Trim non alphanumeric character from the start
                 messageStart = 0;
-                for(const i of userMessageFormatted) {
-                    if(/^[a-z]$/i.test(i)) {
+                for (const i of userMessageFormatted) {
+                    if (/^[a-z]$/i.test(i)) {
                         break;
                     }
                     messageStart += 1;
@@ -109,9 +109,8 @@ async function moduleWorker() {
                 processTranscript(userMessageFormatted);
             }
         }
-        else
-        {
-            console.debug(DEBUG_PREFIX+"Received empty transcript, ignored");
+        else {
+            console.debug(DEBUG_PREFIX + "Received empty transcript, ignored");
         }
     }
     catch (error) {
@@ -124,14 +123,13 @@ async function moduleWorker() {
 
 async function processTranscript(transcript) {
     try {
-        const transcriptOriginal =  transcript;
+        const transcriptOriginal = transcript;
         let transcriptFormatted = transcriptOriginal.trim();
 
-        if (transcriptFormatted.length > 0)
-        {
-            console.debug(DEBUG_PREFIX+"recorded transcript: \""+transcriptFormatted+"\"");
+        if (transcriptFormatted.length > 0) {
+            console.debug(DEBUG_PREFIX + "recorded transcript: \"" + transcriptFormatted + "\"");
             const messageMode = extension_settings.speech_recognition.messageMode;
-            console.debug(DEBUG_PREFIX+"mode: "+messageMode);
+            console.debug(DEBUG_PREFIX + "mode: " + messageMode);
 
             let transcriptLower = transcriptFormatted.toLowerCase()
             // remove punctuation
@@ -139,12 +137,12 @@ async function processTranscript(transcript) {
 
             // Check message mapping
             if (extension_settings.speech_recognition.messageMappingEnabled) {
-                console.debug(DEBUG_PREFIX+"Start searching message mapping into:",transcriptRaw)
+                console.debug(DEBUG_PREFIX + "Start searching message mapping into:", transcriptRaw)
                 for (const key in extension_settings.speech_recognition.messageMapping) {
-                    console.debug(DEBUG_PREFIX+"message mapping searching: ", key,"=>",extension_settings.speech_recognition.messageMapping[key]);
+                    console.debug(DEBUG_PREFIX + "message mapping searching: ", key, "=>", extension_settings.speech_recognition.messageMapping[key]);
                     if (transcriptRaw.includes(key)) {
                         var message = extension_settings.speech_recognition.messageMapping[key];
-                        console.debug(DEBUG_PREFIX+"message mapping found: ", key,"=>",extension_settings.speech_recognition.messageMapping[key]);
+                        console.debug(DEBUG_PREFIX + "message mapping found: ", key, "=>", extension_settings.speech_recognition.messageMapping[key]);
                         $("#send_textarea").val(message);
 
                         if (messageMode == "auto_send") await getContext().generate();
@@ -153,7 +151,7 @@ async function processTranscript(transcript) {
                 }
             }
 
-            console.debug(DEBUG_PREFIX+"no message mapping found, processing transcript as normal message");
+            console.debug(DEBUG_PREFIX + "no message mapping found, processing transcript as normal message");
 
             switch (messageMode) {
                 case "auto_send":
@@ -162,27 +160,26 @@ async function processTranscript(transcript) {
                     sendMessageAsUser(transcriptFormatted);
                     await getContext().generate();
 
-                    $('#debug_output').text("<SST-module DEBUG>: message sent: \""+ transcriptFormatted +"\"");
+                    $('#debug_output').text("<SST-module DEBUG>: message sent: \"" + transcriptFormatted + "\"");
                     break;
 
                 case "replace":
-                    console.debug(DEBUG_PREFIX+"Replacing message")
+                    console.debug(DEBUG_PREFIX + "Replacing message")
                     $('#send_textarea').val(transcriptFormatted);
                     break;
 
                 case "append":
-                    console.debug(DEBUG_PREFIX+"Appending message")
-                    $('#send_textarea').val($('#send_textarea').val()+" "+transcriptFormatted);
+                    console.debug(DEBUG_PREFIX + "Appending message")
+                    $('#send_textarea').val($('#send_textarea').val() + " " + transcriptFormatted);
                     break;
 
                 default:
-                    console.debug(DEBUG_PREFIX+"Not supported stt message mode: "+messageMode)
+                    console.debug(DEBUG_PREFIX + "Not supported stt message mode: " + messageMode)
 
             }
         }
-        else
-        {
-            console.debug(DEBUG_PREFIX+"Empty transcript, do nothing");
+        else {
+            console.debug(DEBUG_PREFIX + "Empty transcript, do nothing");
         }
     }
     catch (error) {
@@ -192,55 +189,55 @@ async function processTranscript(transcript) {
 
 function loadNavigatorAudioRecording() {
     if (navigator.mediaDevices.getUserMedia) {
-        console.debug(DEBUG_PREFIX+' getUserMedia supported by browser.');
+        console.debug(DEBUG_PREFIX + ' getUserMedia supported by browser.');
 
-        let onSuccess = function(stream) {
-          const mediaRecorder = new MediaRecorder(stream);
+        let onSuccess = function (stream) {
+            const mediaRecorder = new MediaRecorder(stream);
 
-          $("#microphone_button").off('click').on("click", function() {
-            if (!audioRecording) {
-                mediaRecorder.start();
-                console.debug(mediaRecorder.state);
-                console.debug("recorder started");
-                audioRecording = true;
-                $("#microphone_button").toggleClass('fa-microphone fa-microphone-slash');
+            $("#microphone_button").off('click').on("click", function () {
+                if (!audioRecording) {
+                    mediaRecorder.start();
+                    console.debug(mediaRecorder.state);
+                    console.debug("recorder started");
+                    audioRecording = true;
+                    $("#microphone_button").toggleClass('fa-microphone fa-microphone-slash');
+                }
+                else {
+                    mediaRecorder.stop();
+                    console.debug(mediaRecorder.state);
+                    console.debug("recorder stopped");
+                    audioRecording = false;
+                    $("#microphone_button").toggleClass('fa-microphone fa-microphone-slash');
+                }
+            });
+
+            mediaRecorder.onstop = async function () {
+                console.debug(DEBUG_PREFIX + "data available after MediaRecorder.stop() called: ", audioChunks.length, " chunks");
+                const audioBlob = new Blob(audioChunks, { type: "audio/wav; codecs=0" });
+                audioChunks = [];
+
+                const transcript = await sttProvider.processAudio(audioBlob);
+
+                // TODO: lock and release recording while processing?
+                console.debug(DEBUG_PREFIX + "received transcript:", transcript);
+                processTranscript(transcript);
             }
-            else {
-                mediaRecorder.stop();
-                console.debug(mediaRecorder.state);
-                console.debug("recorder stopped");
-                audioRecording = false;
-                $("#microphone_button").toggleClass('fa-microphone fa-microphone-slash');
+
+            mediaRecorder.ondataavailable = function (e) {
+                audioChunks.push(e.data);
             }
-          });
-
-          mediaRecorder.onstop = async function() {
-            console.debug(DEBUG_PREFIX+"data available after MediaRecorder.stop() called: ", audioChunks.length, " chunks");
-            const audioBlob = new Blob(audioChunks, { type: "audio/wav; codecs=0" });
-            audioChunks = [];
-
-            const transcript = await sttProvider.processAudio(audioBlob);
-
-            // TODO: lock and release recording while processing?
-            console.debug(DEBUG_PREFIX+"received transcript:", transcript);
-            processTranscript(transcript);
-          }
-
-          mediaRecorder.ondataavailable = function(e) {
-            audioChunks.push(e.data);
-          }
         }
 
-        let onError = function(err) {
-          console.debug(DEBUG_PREFIX+"The following error occured: " + err);
+        let onError = function (err) {
+            console.debug(DEBUG_PREFIX + "The following error occured: " + err);
         }
 
         navigator.mediaDevices.getUserMedia(constraints).then(onSuccess, onError);
 
-      } else {
-         console.debug(DEBUG_PREFIX+"getUserMedia not supported on your browser!");
-         toastr.error("getUserMedia not supported", DEBUG_PREFIX+"not supported for your browser.", { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true });
-      }
+    } else {
+        console.debug(DEBUG_PREFIX + "getUserMedia not supported on your browser!");
+        toastr.error("getUserMedia not supported", DEBUG_PREFIX + "not supported for your browser.", { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true });
+    }
 }
 
 //##############//
@@ -266,11 +263,13 @@ function loadSttProvider(provider) {
         $("#microphone_button").hide();
         $("#speech_recognition_message_mode_div").hide();
         $("#speech_recognition_message_mapping_div").hide();
+        $('#speech_recognition_language_div').hide();
         return;
     }
 
     $("#speech_recognition_message_mode_div").show();
     $("#speech_recognition_message_mapping_div").show();
+    $('#speech_recognition_language_div').show();
 
     sttProvider = new sttProviders[sttProviderName]
 
@@ -279,12 +278,13 @@ function loadSttProvider(provider) {
 
     // Use microphone button as push to talk
     if (sttProviderName == "Browser") {
+        $('#speech_recognition_language_div').hide();
         sttProvider.processTranscriptFunction = processTranscript;
         sttProvider.loadSettings(extension_settings.speech_recognition[sttProviderName]);
         $("#microphone_button").show();
     }
 
-    if (sttProviderName == "Vosk" | sttProviderName == "Whisper") {
+    if (sttProviderName == "Vosk" || sttProviderName == "Whisper (OpenAI)" || sttProviderName == "Whisper (Extras)") {
         sttProvider.loadSettings(extension_settings.speech_recognition[sttProviderName]);
         loadNavigatorAudioRecording();
         $("#microphone_button").show();
@@ -295,7 +295,12 @@ function loadSttProvider(provider) {
         $("#microphone_button").off('click');
         $("#microphone_button").hide();
     }
+}
 
+function onSttLanguageChange() {
+    extension_settings.speech_recognition[sttProviderName].language = String($('#speech_recognition_language').val());
+    sttProvider.loadSettings(extension_settings.speech_recognition[sttProviderName]);
+    saveSettingsDebounced();
 }
 
 function onSttProviderChange() {
@@ -329,20 +334,20 @@ function loadSettings() {
     if (Object.keys(extension_settings.speech_recognition).length === 0) {
         Object.assign(extension_settings.speech_recognition, defaultSettings)
     }
-    $('#speech_recognition_enabled').prop('checked',extension_settings.speech_recognition.enabled);
+    $('#speech_recognition_enabled').prop('checked', extension_settings.speech_recognition.enabled);
     $('#speech_recognition_message_mode').val(extension_settings.speech_recognition.messageMode);
 
     if (extension_settings.speech_recognition.messageMappingText.length > 0) {
         $('#speech_recognition_message_mapping').val(extension_settings.speech_recognition.messageMappingText);
     }
 
-    $('#speech_recognition_message_mapping_enabled').prop('checked',extension_settings.speech_recognition.messageMappingEnabled);
+    $('#speech_recognition_message_mapping_enabled').prop('checked', extension_settings.speech_recognition.messageMappingEnabled);
 }
 
 async function onMessageModeChange() {
     extension_settings.speech_recognition.messageMode = $('#speech_recognition_message_mode').val();
 
-    if(sttProviderName != "Browser" & extension_settings.speech_recognition.messageMode == "auto_send") {
+    if (sttProviderName != "Browser" && extension_settings.speech_recognition.messageMode == "auto_send") {
         $("#speech_recognition_wait_response_div").show()
     }
     else {
@@ -353,23 +358,23 @@ async function onMessageModeChange() {
 }
 
 async function onMessageMappingChange() {
-    let array = $('#speech_recognition_message_mapping').val().split(",");
-    array = array.map(element => {return element.trim();});
+    let array = String($('#speech_recognition_message_mapping').val()).split(",");
+    array = array.map(element => { return element.trim(); });
     array = array.filter((str) => str !== '');
     extension_settings.speech_recognition.messageMapping = {};
     for (const text of array) {
         if (text.includes("=")) {
             const pair = text.toLowerCase().split("=")
             extension_settings.speech_recognition.messageMapping[pair[0].trim()] = pair[1].trim()
-            console.debug(DEBUG_PREFIX+"Added mapping", pair[0],"=>", extension_settings.speech_recognition.messageMapping[pair[0]]);
+            console.debug(DEBUG_PREFIX + "Added mapping", pair[0], "=>", extension_settings.speech_recognition.messageMapping[pair[0]]);
         }
         else {
-            console.debug(DEBUG_PREFIX+"Wrong syntax for message mapping, no '=' found in:", text);
+            console.debug(DEBUG_PREFIX + "Wrong syntax for message mapping, no '=' found in:", text);
         }
     }
 
-    $("#speech_recognition_message_mapping_status").text("Message mapping updated to: "+JSON.stringify(extension_settings.speech_recognition.messageMapping))
-    console.debug(DEBUG_PREFIX+"Updated message mapping", extension_settings.speech_recognition.messageMapping);
+    $("#speech_recognition_message_mapping_status").text("Message mapping updated to: " + JSON.stringify(extension_settings.speech_recognition.messageMapping))
+    console.debug(DEBUG_PREFIX + "Updated message mapping", extension_settings.speech_recognition.messageMapping);
     extension_settings.speech_recognition.messageMappingText = $('#speech_recognition_message_mapping').val()
     saveSettingsDebounced();
 }
@@ -392,6 +397,69 @@ $(document).ready(function () {
                     <div>
                         <span>Select Speech-to-text Provider</span> </br>
                         <select id="speech_recognition_provider">
+                        </select>
+                    </div>
+                    <div id="speech_recognition_language_div">
+                        <span>Speech Language</span> </br>
+                        <select id="speech_recognition_language">
+                            <option value="">-- Automatic --</option>
+                            <option value="af">Afrikaans</option>
+                            <option value="ar">Arabic</option>
+                            <option value="hy">Armenian</option>
+                            <option value="az">Azerbaijani</option>
+                            <option value="be">Belarusian</option>
+                            <option value="bs">Bosnian</option>
+                            <option value="bg">Bulgarian</option>
+                            <option value="ca">Catalan</option>
+                            <option value="zh">Chinese</option>
+                            <option value="hr">Croatian</option>
+                            <option value="cs">Czech</option>
+                            <option value="da">Danish</option>
+                            <option value="nl">Dutch</option>
+                            <option value="en">English</option>
+                            <option value="et">Estonian</option>
+                            <option value="fi">Finnish</option>
+                            <option value="fr">French</option>
+                            <option value="gl">Galician</option>
+                            <option value="de">German</option>
+                            <option value="el">Greek</option>
+                            <option value="he">Hebrew</option>
+                            <option value="hi">Hindi</option>
+                            <option value="hu">Hungarian</option>
+                            <option value="is">Icelandic</option>
+                            <option value="id">Indonesian</option>
+                            <option value="it">Italian</option>
+                            <option value="ja">Japanese</option>
+                            <option value="kn">Kannada</option>
+                            <option value="kk">Kazakh</option>
+                            <option value="ko">Korean</option>
+                            <option value="lv">Latvian</option>
+                            <option value="lt">Lithuanian</option>
+                            <option value="mk">Macedonian</option>
+                            <option value="ms">Malay</option>
+                            <option value="mr">Marathi</option>
+                            <option value="mi">Maori</option>
+                            <option value="ne">Nepali</option>
+                            <option value="no">Norwegian</option>
+                            <option value="fa">Persian</option>
+                            <option value="pl">Polish</option>
+                            <option value="pt">Portuguese</option>
+                            <option value="ro">Romanian</option>
+                            <option value="ru">Russian</option>
+                            <option value="sr">Serbian</option>
+                            <option value="sk">Slovak</option>
+                            <option value="sl">Slovenian</option>
+                            <option value="es">Spanish</option>
+                            <option value="sw">Swahili</option>
+                            <option value="sv">Swedish</option>
+                            <option value="tl">Tagalog</option>
+                            <option value="ta">Tamil</option>
+                            <option value="th">Thai</option>
+                            <option value="tr">Turkish</option>
+                            <option value="uk">Ukrainian</option>
+                            <option value="ur">Urdu</option>
+                            <option value="vi">Vietnamese</option>
+                            <option value="cy">Welsh</option>
                         </select>
                     </div>
                     <div id="speech_recognition_message_mode_div">
@@ -421,15 +489,21 @@ $(document).ready(function () {
         $('#speech_recognition_provider_settings').on('input', onSttProviderSettingsInput);
         for (const provider in sttProviders) {
             $('#speech_recognition_provider').append($("<option />").val(provider).text(provider));
-            console.debug(DEBUG_PREFIX+"added option "+provider);
+            console.debug(DEBUG_PREFIX + "added option " + provider);
         }
         $('#speech_recognition_provider').on('change', onSttProviderChange);
         $('#speech_recognition_message_mode').on('change', onMessageModeChange);
         $('#speech_recognition_message_mapping').on('change', onMessageMappingChange);
+        $('#speech_recognition_language').on('change', onSttLanguageChange);
         $('#speech_recognition_message_mapping_enabled').on('click', onMessageMappingEnabledClick);
 
         const $button = $('<div id="microphone_button" class="fa-solid fa-microphone speech-toggle" title="Click to speak"></div>');
-        $('#send_but_sheld').prepend($button);
+        // For versions before 1.10.10
+        if ($('#send_but_sheld').length == 0) {
+            $('#rightSendForm').prepend($button);
+        } else {
+            $('#send_but_sheld').prepend($button);
+        }
 
     }
     addExtensionControls(); // No init dependencies
