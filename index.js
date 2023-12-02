@@ -3,17 +3,17 @@ TODO:
  - try pseudo streaming audio by just sending chunk every X seconds and asking VOSK if it is full text.
 */
 
-import { saveSettingsDebounced, sendMessageAsUser } from "../../../../script.js";
-import { getContext, extension_settings, ModuleWorkerWrapper } from "../../../extensions.js";
-import { VoskSttProvider } from './vosk.js'
-import { WhisperExtrasSttProvider } from './whisper-extras.js'
-import { WhisperOpenAISttProvider } from './whisper-openai.js'
-import { BrowserSttProvider } from './browser.js'
-import { StreamingSttProvider } from './streaming.js'
+import { saveSettingsDebounced, sendMessageAsUser } from '../../../../script.js';
+import { getContext, extension_settings, ModuleWorkerWrapper } from '../../../extensions.js';
+import { VoskSttProvider } from './vosk.js';
+import { WhisperExtrasSttProvider } from './whisper-extras.js';
+import { WhisperOpenAISttProvider } from './whisper-openai.js';
+import { BrowserSttProvider } from './browser.js';
+import { StreamingSttProvider } from './streaming.js';
 export { MODULE_NAME };
 
 const MODULE_NAME = 'Speech Recognition';
-const DEBUG_PREFIX = "<Speech Recognition module> "
+const DEBUG_PREFIX = '<Speech Recognition module> ';
 const UPDATE_INTERVAL = 100;
 
 let inApiCall = false;
@@ -25,17 +25,17 @@ let sttProviders = {
     'Whisper (OpenAI)': WhisperOpenAISttProvider,
     Vosk: VoskSttProvider,
     Streaming: StreamingSttProvider,
-}
+};
 
-let sttProvider = null
-let sttProviderName = "None"
+let sttProvider = null;
+let sttProviderName = 'None';
 
-let audioRecording = false
+let audioRecording = false;
 const constraints = { audio: { sampleSize: 16, channelCount: 1, sampleRate: 16000 } };
 let audioChunks = [];
 
 async function moduleWorker() {
-    if (sttProviderName != "Streaming") {
+    if (sttProviderName != 'Streaming') {
         return;
     }
 
@@ -50,13 +50,13 @@ async function moduleWorker() {
         let userMessageFormatted = userMessageOriginal.trim();
 
         if (userMessageFormatted.length > 0) {
-            console.debug(DEBUG_PREFIX + "recorded transcript: \"" + userMessageFormatted + "\"");
+            console.debug(DEBUG_PREFIX + 'recorded transcript: "' + userMessageFormatted + '"');
 
             let userMessageLower = userMessageFormatted.toLowerCase();
             // remove punctuation
-            let userMessageRaw = userMessageLower.replace(/[^\w\s\']|_/g, "").replace(/\s+/g, " ");
+            let userMessageRaw = userMessageLower.replace(/[^\w\s\']|_/g, '').replace(/\s+/g, ' ');
 
-            console.debug(DEBUG_PREFIX + "raw transcript:", userMessageRaw);
+            console.debug(DEBUG_PREFIX + 'raw transcript:', userMessageRaw);
 
             // Detect trigger words
             let messageStart = -1;
@@ -68,10 +68,10 @@ async function moduleWorker() {
 
                     // Trigger word not found or not starting message and just a substring
                     if (triggerPos == -1) { // | (triggerPos > 0 & userMessageFormatted[triggerPos-1] != " ")) {
-                        console.debug(DEBUG_PREFIX + "trigger word not found: ", triggerWord);
+                        console.debug(DEBUG_PREFIX + 'trigger word not found: ', triggerWord);
                     }
                     else {
-                        console.debug(DEBUG_PREFIX + "Found trigger word: ", triggerWord, " at index ", triggerPos);
+                        console.debug(DEBUG_PREFIX + 'Found trigger word: ', triggerWord, ' at index ', triggerPos);
                         if (triggerPos < messageStart || messageStart == -1) { // & (triggerPos + triggerWord.length) < userMessageFormatted.length)) {
                             messageStart = triggerPos; // + triggerWord.length + 1;
 
@@ -85,11 +85,11 @@ async function moduleWorker() {
             }
 
             if (messageStart == -1) {
-                console.debug(DEBUG_PREFIX + "message ignored, no trigger word preceding a message. Voice transcript: \"" + userMessageOriginal + "\"");
+                console.debug(DEBUG_PREFIX + 'message ignored, no trigger word preceding a message. Voice transcript: "' + userMessageOriginal + '"');
                 if (extension_settings.speech_recognition.Streaming.debug) {
                     toastr.info(
-                        "No trigger word preceding a message. Voice transcript: \"" + userMessageOriginal + "\"",
-                        DEBUG_PREFIX + "message ignored.",
+                        'No trigger word preceding a message. Voice transcript: "' + userMessageOriginal + '"',
+                        DEBUG_PREFIX + 'message ignored.',
                         { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true },
                     );
                 }
@@ -110,7 +110,7 @@ async function moduleWorker() {
             }
         }
         else {
-            console.debug(DEBUG_PREFIX + "Received empty transcript, ignored");
+            console.debug(DEBUG_PREFIX + 'Received empty transcript, ignored');
         }
     }
     catch (error) {
@@ -127,59 +127,59 @@ async function processTranscript(transcript) {
         let transcriptFormatted = transcriptOriginal.trim();
 
         if (transcriptFormatted.length > 0) {
-            console.debug(DEBUG_PREFIX + "recorded transcript: \"" + transcriptFormatted + "\"");
+            console.debug(DEBUG_PREFIX + 'recorded transcript: "' + transcriptFormatted + '"');
             const messageMode = extension_settings.speech_recognition.messageMode;
-            console.debug(DEBUG_PREFIX + "mode: " + messageMode);
+            console.debug(DEBUG_PREFIX + 'mode: ' + messageMode);
 
-            let transcriptLower = transcriptFormatted.toLowerCase()
+            let transcriptLower = transcriptFormatted.toLowerCase();
             // remove punctuation
-            let transcriptRaw = transcriptLower.replace(/[^\w\s\']|_/g, "").replace(/\s+/g, " ");
+            let transcriptRaw = transcriptLower.replace(/[^\w\s\']|_/g, '').replace(/\s+/g, ' ');
 
             // Check message mapping
             if (extension_settings.speech_recognition.messageMappingEnabled) {
-                console.debug(DEBUG_PREFIX + "Start searching message mapping into:", transcriptRaw)
+                console.debug(DEBUG_PREFIX + 'Start searching message mapping into:', transcriptRaw);
                 for (const key in extension_settings.speech_recognition.messageMapping) {
-                    console.debug(DEBUG_PREFIX + "message mapping searching: ", key, "=>", extension_settings.speech_recognition.messageMapping[key]);
+                    console.debug(DEBUG_PREFIX + 'message mapping searching: ', key, '=>', extension_settings.speech_recognition.messageMapping[key]);
                     if (transcriptRaw.includes(key)) {
                         var message = extension_settings.speech_recognition.messageMapping[key];
-                        console.debug(DEBUG_PREFIX + "message mapping found: ", key, "=>", extension_settings.speech_recognition.messageMapping[key]);
-                        $("#send_textarea").val(message);
+                        console.debug(DEBUG_PREFIX + 'message mapping found: ', key, '=>', extension_settings.speech_recognition.messageMapping[key]);
+                        $('#send_textarea').val(message);
 
-                        if (messageMode == "auto_send") await getContext().generate();
+                        if (messageMode == 'auto_send') await getContext().generate();
                         return;
                     }
                 }
             }
 
-            console.debug(DEBUG_PREFIX + "no message mapping found, processing transcript as normal message");
+            console.debug(DEBUG_PREFIX + 'no message mapping found, processing transcript as normal message');
 
             switch (messageMode) {
-                case "auto_send":
-                    $('#send_textarea').val("") // clear message area to avoid double message
+                case 'auto_send':
+                    $('#send_textarea').val(''); // clear message area to avoid double message
 
                     sendMessageAsUser(transcriptFormatted);
                     await getContext().generate();
 
-                    $('#debug_output').text("<SST-module DEBUG>: message sent: \"" + transcriptFormatted + "\"");
+                    $('#debug_output').text('<SST-module DEBUG>: message sent: "' + transcriptFormatted + '"');
                     break;
 
-                case "replace":
-                    console.debug(DEBUG_PREFIX + "Replacing message")
+                case 'replace':
+                    console.debug(DEBUG_PREFIX + 'Replacing message');
                     $('#send_textarea').val(transcriptFormatted);
                     break;
 
-                case "append":
-                    console.debug(DEBUG_PREFIX + "Appending message")
-                    $('#send_textarea').val($('#send_textarea').val() + " " + transcriptFormatted);
+                case 'append':
+                    console.debug(DEBUG_PREFIX + 'Appending message');
+                    $('#send_textarea').val($('#send_textarea').val() + ' ' + transcriptFormatted);
                     break;
 
                 default:
-                    console.debug(DEBUG_PREFIX + "Not supported stt message mode: " + messageMode)
+                    console.debug(DEBUG_PREFIX + 'Not supported stt message mode: ' + messageMode);
 
             }
         }
         else {
-            console.debug(DEBUG_PREFIX + "Empty transcript, do nothing");
+            console.debug(DEBUG_PREFIX + 'Empty transcript, do nothing');
         }
     }
     catch (error) {
@@ -194,49 +194,49 @@ function loadNavigatorAudioRecording() {
         let onSuccess = function (stream) {
             const mediaRecorder = new MediaRecorder(stream);
 
-            $("#microphone_button").off('click').on("click", function () {
+            $('#microphone_button').off('click').on('click', function () {
                 if (!audioRecording) {
                     mediaRecorder.start();
                     console.debug(mediaRecorder.state);
-                    console.debug("recorder started");
+                    console.debug('recorder started');
                     audioRecording = true;
-                    $("#microphone_button").toggleClass('fa-microphone fa-microphone-slash');
+                    $('#microphone_button').toggleClass('fa-microphone fa-microphone-slash');
                 }
                 else {
                     mediaRecorder.stop();
                     console.debug(mediaRecorder.state);
-                    console.debug("recorder stopped");
+                    console.debug('recorder stopped');
                     audioRecording = false;
-                    $("#microphone_button").toggleClass('fa-microphone fa-microphone-slash');
+                    $('#microphone_button').toggleClass('fa-microphone fa-microphone-slash');
                 }
             });
 
             mediaRecorder.onstop = async function () {
-                console.debug(DEBUG_PREFIX + "data available after MediaRecorder.stop() called: ", audioChunks.length, " chunks");
-                const audioBlob = new Blob(audioChunks, { type: "audio/wav; codecs=0" });
+                console.debug(DEBUG_PREFIX + 'data available after MediaRecorder.stop() called: ', audioChunks.length, ' chunks');
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav; codecs=0' });
                 audioChunks = [];
 
                 const transcript = await sttProvider.processAudio(audioBlob);
 
                 // TODO: lock and release recording while processing?
-                console.debug(DEBUG_PREFIX + "received transcript:", transcript);
+                console.debug(DEBUG_PREFIX + 'received transcript:', transcript);
                 processTranscript(transcript);
-            }
+            };
 
             mediaRecorder.ondataavailable = function (e) {
                 audioChunks.push(e.data);
-            }
-        }
+            };
+        };
 
         let onError = function (err) {
-            console.debug(DEBUG_PREFIX + "The following error occured: " + err);
-        }
+            console.debug(DEBUG_PREFIX + 'The following error occured: ' + err);
+        };
 
         navigator.mediaDevices.getUserMedia(constraints).then(onSuccess, onError);
 
     } else {
-        console.debug(DEBUG_PREFIX + "getUserMedia not supported on your browser!");
-        toastr.error("getUserMedia not supported", DEBUG_PREFIX + "not supported for your browser.", { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true });
+        console.debug(DEBUG_PREFIX + 'getUserMedia not supported on your browser!');
+        toastr.error('getUserMedia not supported', DEBUG_PREFIX + 'not supported for your browser.', { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true });
     }
 }
 
@@ -246,7 +246,7 @@ function loadNavigatorAudioRecording() {
 
 function loadSttProvider(provider) {
     //Clear the current config and add new config
-    $("#speech_recognition_provider_settings").html("");
+    $('#speech_recognition_provider_settings').html('');
 
     // Init provider references
     extension_settings.speech_recognition.currentProvider = provider;
@@ -259,41 +259,41 @@ function loadSttProvider(provider) {
 
     $('#speech_recognition_provider').val(sttProviderName);
 
-    if (sttProviderName == "None") {
-        $("#microphone_button").hide();
-        $("#speech_recognition_message_mode_div").hide();
-        $("#speech_recognition_message_mapping_div").hide();
+    if (sttProviderName == 'None') {
+        $('#microphone_button').hide();
+        $('#speech_recognition_message_mode_div').hide();
+        $('#speech_recognition_message_mapping_div').hide();
         $('#speech_recognition_language_div').hide();
         return;
     }
 
-    $("#speech_recognition_message_mode_div").show();
-    $("#speech_recognition_message_mapping_div").show();
+    $('#speech_recognition_message_mode_div').show();
+    $('#speech_recognition_message_mapping_div').show();
     $('#speech_recognition_language_div').show();
 
-    sttProvider = new sttProviders[sttProviderName]
+    sttProvider = new sttProviders[sttProviderName];
 
     // Init provider settings
     $('#speech_recognition_provider_settings').append(sttProvider.settingsHtml);
 
     // Use microphone button as push to talk
-    if (sttProviderName == "Browser") {
+    if (sttProviderName == 'Browser') {
         $('#speech_recognition_language_div').hide();
         sttProvider.processTranscriptFunction = processTranscript;
         sttProvider.loadSettings(extension_settings.speech_recognition[sttProviderName]);
-        $("#microphone_button").show();
+        $('#microphone_button').show();
     }
 
-    if (sttProviderName == "Vosk" || sttProviderName == "Whisper (OpenAI)" || sttProviderName == "Whisper (Extras)") {
+    if (sttProviderName == 'Vosk' || sttProviderName == 'Whisper (OpenAI)' || sttProviderName == 'Whisper (Extras)') {
         sttProvider.loadSettings(extension_settings.speech_recognition[sttProviderName]);
         loadNavigatorAudioRecording();
-        $("#microphone_button").show();
+        $('#microphone_button').show();
     }
 
-    if (sttProviderName == "Streaming") {
+    if (sttProviderName == 'Streaming') {
         sttProvider.loadSettings(extension_settings.speech_recognition[sttProviderName]);
-        $("#microphone_button").off('click');
-        $("#microphone_button").hide();
+        $('#microphone_button').off('click');
+        $('#microphone_button').hide();
     }
 }
 
@@ -323,16 +323,16 @@ function onSttProviderSettingsInput() {
 //#############################//
 
 const defaultSettings = {
-    currentProvider: "None",
-    messageMode: "append",
-    messageMappingText: "",
+    currentProvider: 'None',
+    messageMode: 'append',
+    messageMappingText: '',
     messageMapping: [],
     messageMappingEnabled: false,
-}
+};
 
 function loadSettings() {
     if (Object.keys(extension_settings.speech_recognition).length === 0) {
-        Object.assign(extension_settings.speech_recognition, defaultSettings)
+        Object.assign(extension_settings.speech_recognition, defaultSettings);
     }
     $('#speech_recognition_enabled').prop('checked', extension_settings.speech_recognition.enabled);
     $('#speech_recognition_message_mode').val(extension_settings.speech_recognition.messageMode);
@@ -347,41 +347,41 @@ function loadSettings() {
 async function onMessageModeChange() {
     extension_settings.speech_recognition.messageMode = $('#speech_recognition_message_mode').val();
 
-    if (sttProviderName != "Browser" && extension_settings.speech_recognition.messageMode == "auto_send") {
-        $("#speech_recognition_wait_response_div").show()
+    if (sttProviderName != 'Browser' && extension_settings.speech_recognition.messageMode == 'auto_send') {
+        $('#speech_recognition_wait_response_div').show();
     }
     else {
-        $("#speech_recognition_wait_response_div").hide()
+        $('#speech_recognition_wait_response_div').hide();
     }
 
     saveSettingsDebounced();
 }
 
 async function onMessageMappingChange() {
-    let array = String($('#speech_recognition_message_mapping').val()).split(",");
+    let array = String($('#speech_recognition_message_mapping').val()).split(',');
     array = array.map(element => { return element.trim(); });
     array = array.filter((str) => str !== '');
     extension_settings.speech_recognition.messageMapping = {};
     for (const text of array) {
-        if (text.includes("=")) {
-            const pair = text.toLowerCase().split("=")
-            extension_settings.speech_recognition.messageMapping[pair[0].trim()] = pair[1].trim()
-            console.debug(DEBUG_PREFIX + "Added mapping", pair[0], "=>", extension_settings.speech_recognition.messageMapping[pair[0]]);
+        if (text.includes('=')) {
+            const pair = text.toLowerCase().split('=');
+            extension_settings.speech_recognition.messageMapping[pair[0].trim()] = pair[1].trim();
+            console.debug(DEBUG_PREFIX + 'Added mapping', pair[0], '=>', extension_settings.speech_recognition.messageMapping[pair[0]]);
         }
         else {
-            console.debug(DEBUG_PREFIX + "Wrong syntax for message mapping, no '=' found in:", text);
+            console.debug(DEBUG_PREFIX + 'Wrong syntax for message mapping, no \'=\' found in:', text);
         }
     }
 
-    $("#speech_recognition_message_mapping_status").text("Message mapping updated to: " + JSON.stringify(extension_settings.speech_recognition.messageMapping))
-    console.debug(DEBUG_PREFIX + "Updated message mapping", extension_settings.speech_recognition.messageMapping);
-    extension_settings.speech_recognition.messageMappingText = $('#speech_recognition_message_mapping').val()
+    $('#speech_recognition_message_mapping_status').text('Message mapping updated to: ' + JSON.stringify(extension_settings.speech_recognition.messageMapping));
+    console.debug(DEBUG_PREFIX + 'Updated message mapping', extension_settings.speech_recognition.messageMapping);
+    extension_settings.speech_recognition.messageMappingText = $('#speech_recognition_message_mapping').val();
     saveSettingsDebounced();
 }
 
 async function onMessageMappingEnabledClick() {
     extension_settings.speech_recognition.messageMappingEnabled = $('#speech_recognition_message_mapping_enabled').is(':checked');
-    saveSettingsDebounced()
+    saveSettingsDebounced();
 }
 
 $(document).ready(function () {
@@ -488,8 +488,8 @@ $(document).ready(function () {
         $('#extensions_settings').append(settingsHtml);
         $('#speech_recognition_provider_settings').on('input', onSttProviderSettingsInput);
         for (const provider in sttProviders) {
-            $('#speech_recognition_provider').append($("<option />").val(provider).text(provider));
-            console.debug(DEBUG_PREFIX + "added option " + provider);
+            $('#speech_recognition_provider').append($('<option />').val(provider).text(provider));
+            console.debug(DEBUG_PREFIX + 'added option ' + provider);
         }
         $('#speech_recognition_provider').on('change', onSttProviderChange);
         $('#speech_recognition_message_mode').on('change', onMessageModeChange);
@@ -512,4 +512,4 @@ $(document).ready(function () {
     const wrapper = new ModuleWorkerWrapper(moduleWorker);
     setInterval(wrapper.update.bind(wrapper), UPDATE_INTERVAL); // Init depends on all the things
     moduleWorker();
-})
+});

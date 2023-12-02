@@ -1,23 +1,23 @@
-import { getApiUrl, doExtrasFetch } from "../../../extensions.js";
-export { WhisperExtrasSttProvider }
+import { getApiUrl, doExtrasFetch } from '../../../extensions.js';
+export { WhisperExtrasSttProvider };
 
-const DEBUG_PREFIX = "<Speech Recognition module (Whisper Extras)> "
+const DEBUG_PREFIX = '<Speech Recognition module (Whisper Extras)> ';
 
 class WhisperExtrasSttProvider {
     //########//
     // Config //
     //########//
 
-    settings
+    settings;
 
     defaultSettings = {
         //model_path: "",
         language: '',
-    }
+    };
 
     get settingsHtml() {
-        let html = ""
-        return html
+        let html = '';
+        return html;
     }
 
     onSettingsChange() {
@@ -27,22 +27,22 @@ class WhisperExtrasSttProvider {
     loadSettings(settings) {
         // Populate Provider UI given input settings
         if (Object.keys(settings).length == 0) {
-            console.debug(DEBUG_PREFIX + "Using default Whisper STT extension settings")
+            console.debug(DEBUG_PREFIX + 'Using default Whisper STT extension settings');
         }
 
         // Only accept keys defined in defaultSettings
-        this.settings = this.defaultSettings
+        this.settings = this.defaultSettings;
 
         for (const key in settings) {
             if (key in this.settings) {
-                this.settings[key] = settings[key]
+                this.settings[key] = settings[key];
             } else {
-                throw `Invalid setting passed to STT extension: ${key}`
+                throw `Invalid setting passed to STT extension: ${key}`;
             }
         }
 
         $('#speech_recognition_language').val(this.settings.language);
-        console.debug(DEBUG_PREFIX + "Whisper (Extras) STT settings loaded")
+        console.debug(DEBUG_PREFIX + 'Whisper (Extras) STT settings loaded');
     }
 
     async processAudio(audioblob) {

@@ -1,7 +1,7 @@
-import { getRequestHeaders } from "../../../../script.js";
-export { WhisperOpenAISttProvider }
+import { getRequestHeaders } from '../../../../script.js';
+export { WhisperOpenAISttProvider };
 
-const DEBUG_PREFIX = "<Speech Recognition module (Whisper OpenAI)> "
+const DEBUG_PREFIX = '<Speech Recognition module (Whisper OpenAI)> ';
 
 class WhisperOpenAISttProvider {
     settings;
@@ -11,8 +11,8 @@ class WhisperOpenAISttProvider {
     };
 
     get settingsHtml() {
-        let html = ""
-        return html
+        let html = '';
+        return html;
     }
 
     onSettingsChange() {
@@ -22,22 +22,22 @@ class WhisperOpenAISttProvider {
     loadSettings(settings) {
         // Populate Provider UI given input settings
         if (Object.keys(settings).length == 0) {
-            console.debug(DEBUG_PREFIX + "Using default Whisper (OpenAI) STT extension settings")
+            console.debug(DEBUG_PREFIX + 'Using default Whisper (OpenAI) STT extension settings');
         }
 
         // Only accept keys defined in defaultSettings
-        this.settings = this.defaultSettings
+        this.settings = this.defaultSettings;
 
         for (const key in settings) {
             if (key in this.settings) {
-                this.settings[key] = settings[key]
+                this.settings[key] = settings[key];
             } else {
-                throw `Invalid setting passed to STT extension: ${key}`
+                throw `Invalid setting passed to STT extension: ${key}`;
             }
         }
 
         $('#speech_recognition_language').val(this.settings.language);
-        console.debug(DEBUG_PREFIX + "Whisper (OpenAI) STT settings loaded")
+        console.debug(DEBUG_PREFIX + 'Whisper (OpenAI) STT settings loaded');
     }
 
     async processAudio(audioBlob) {

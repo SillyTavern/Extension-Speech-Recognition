@@ -1,22 +1,22 @@
-import { getApiUrl, doExtrasFetch } from "../../../extensions.js";
-export { VoskSttProvider }
+import { getApiUrl, doExtrasFetch } from '../../../extensions.js';
+export { VoskSttProvider };
 
-const DEBUG_PREFIX = "<Speech Recognition module (Vosk)> "
+const DEBUG_PREFIX = '<Speech Recognition module (Vosk)> ';
 
 class VoskSttProvider {
     //########//
     // Config //
     //########//
 
-    settings
+    settings;
 
     defaultSettings = {
         language: '',
-    }
+    };
 
     get settingsHtml() {
-        let html = ""
-        return html
+        let html = '';
+        return html;
     }
 
     onSettingsChange() {
@@ -26,22 +26,22 @@ class VoskSttProvider {
     loadSettings(settings) {
         // Populate Provider UI given input settings
         if (Object.keys(settings).length == 0) {
-            console.debug(DEBUG_PREFIX + "Using default vosk STT extension settings")
+            console.debug(DEBUG_PREFIX + 'Using default vosk STT extension settings');
         }
 
         // Only accept keys defined in defaultSettings
-        this.settings = this.defaultSettings
+        this.settings = this.defaultSettings;
 
         for (const key in settings) {
             if (key in this.settings) {
-                this.settings[key] = settings[key]
+                this.settings[key] = settings[key];
             } else {
-                throw `Invalid setting passed to STT extension: ${key}`
+                throw `Invalid setting passed to STT extension: ${key}`;
             }
         }
 
         $('#speech_recognition_language').val(this.settings.language);
-        console.debug(DEBUG_PREFIX + "Vosk STT settings loaded")
+        console.debug(DEBUG_PREFIX + 'Vosk STT settings loaded');
     }
 
     async processAudio(audioblob) {
