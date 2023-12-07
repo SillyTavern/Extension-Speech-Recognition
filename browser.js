@@ -87,7 +87,7 @@ class BrowserSttProvider {
     onSettingsChange() {
         // Used when provider settings are updated from UI
         this.settings.language = $('#speech_recognition_browser_provider_language').val();
-        console.debug(DEBUG_PREFIX+'Change language to',this.settings.language);
+        console.debug(DEBUG_PREFIX + 'Change language to',this.settings.language);
         this.loadSettings(this.settings);
     }
 
@@ -115,7 +115,7 @@ class BrowserSttProvider {
 
         // Populate Provider UI given input settings
         if (Object.keys(settings).length == 0) {
-            console.debug(DEBUG_PREFIX+'Using default browser STT settings');
+            console.debug(DEBUG_PREFIX + 'Using default browser STT settings');
         }
 
         // Initialise as defaultSettings
@@ -139,7 +139,7 @@ class BrowserSttProvider {
         const speechRecognitionList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
 
         if (!speechRecognition) {
-            console.warn(DEBUG_PREFIX+'Speech recognition is not supported in this browser.');
+            console.warn(DEBUG_PREFIX + 'Speech recognition is not supported in this browser.');
             $('#microphone_button').hide();
             toastr.error('Speech recognition is not supported in this browser, use another browser or another provider of SillyTavern-extras Speech recognition extension.', 'Speech recognition activation Failed (Browser)', { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true });
             return;
@@ -226,7 +226,7 @@ class BrowserSttProvider {
 
         $('#microphone_button').show();
 
-        console.debug(DEBUG_PREFIX+'Browser STT settings loaded');
+        console.debug(DEBUG_PREFIX + 'Browser STT settings loaded');
     }
 
 
