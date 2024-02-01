@@ -8,6 +8,7 @@ import { getContext, extension_settings, ModuleWorkerWrapper } from '../../../ex
 import { VoskSttProvider } from './vosk.js';
 import { WhisperExtrasSttProvider } from './whisper-extras.js';
 import { WhisperOpenAISttProvider } from './whisper-openai.js';
+import { WhisperLocalSttProvider } from './whisper-local.js';
 import { BrowserSttProvider } from './browser.js';
 import { StreamingSttProvider } from './streaming.js';
 export { MODULE_NAME };
@@ -23,6 +24,7 @@ let sttProviders = {
     Browser: BrowserSttProvider,
     'Whisper (Extras)': WhisperExtrasSttProvider,
     'Whisper (OpenAI)': WhisperOpenAISttProvider,
+    'Whisper (Local)': WhisperLocalSttProvider,
     Vosk: VoskSttProvider,
     Streaming: StreamingSttProvider,
 };
@@ -213,10 +215,16 @@ function loadNavigatorAudioRecording() {
 
             mediaRecorder.onstop = async function () {
                 console.debug(DEBUG_PREFIX + 'data available after MediaRecorder.stop() called: ', audioChunks.length, ' chunks');
-                const audioBlob = new Blob(audioChunks, { type: 'audio/wav; codecs=0' });
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+                const arrayBuffer = await audioBlob.arrayBuffer();
+
+                // Use AudioContext to decode our array buffer into an audio buffer
+                const audioContext = new AudioContext();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                 audioChunks = [];
 
-                const transcript = await sttProvider.processAudio(audioBlob);
+                const wavBlob = await convertAudioBufferToWavBlob(audioBuffer);
+                const transcript = await sttProvider.processAudio(wavBlob);
 
                 // TODO: lock and release recording while processing?
                 console.debug(DEBUG_PREFIX + 'received transcript:', transcript);
@@ -284,7 +292,7 @@ function loadSttProvider(provider) {
         $('#microphone_button').show();
     }
 
-    if (sttProviderName == 'Vosk' || sttProviderName == 'Whisper (OpenAI)' || sttProviderName == 'Whisper (Extras)') {
+    if (sttProviderName == 'Vosk' || sttProviderName == 'Whisper (OpenAI)' || sttProviderName == 'Whisper (Extras)' || sttProviderName == 'Whisper (Local)') {
         sttProvider.loadSettings(extension_settings.speech_recognition[sttProviderName]);
         loadNavigatorAudioRecording();
         $('#microphone_button').show();
@@ -382,6 +390,27 @@ async function onMessageMappingChange() {
 async function onMessageMappingEnabledClick() {
     extension_settings.speech_recognition.messageMappingEnabled = $('#speech_recognition_message_mapping_enabled').is(':checked');
     saveSettingsDebounced();
+}
+
+async function convertAudioBufferToWavBlob(audioBuffer) {
+    return new Promise(function (resolve) {
+        var worker = new Worker('/scripts/extensions/third-party/Extension-Speech-Recognition/wave-worker.js');
+
+        worker.onmessage = function (e) {
+            var blob = new Blob([e.data.buffer], { type: 'audio/wav' });
+            resolve(blob);
+        };
+
+        let pcmArrays = [];
+        for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+            pcmArrays.push(audioBuffer.getChannelData(i));
+        }
+
+        worker.postMessage({
+            pcmArrays,
+            config: { sampleRate: audioBuffer.sampleRate },
+        });
+    });
 }
 
 $(document).ready(function () {
