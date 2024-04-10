@@ -148,8 +148,9 @@ class BrowserSttProvider {
         const recognition = new speechRecognition();
 
         if (speechRecognitionSettings.grammar && speechRecognitionList) {
-            speechRecognitionList.addFromString(speechRecognitionSettings.grammar, 1);
-            recognition.grammars = speechRecognitionList;
+            const recognitionList = new speechRecognitionList();
+            recognitionList.addFromString(speechRecognitionSettings.grammar, 1);
+            recognition.grammars = recognitionList;
         }
 
         recognition.continuous = true;
