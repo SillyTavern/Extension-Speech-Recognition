@@ -272,6 +272,7 @@ function loadSttProvider(provider) {
         $('#speech_recognition_message_mode_div').hide();
         $('#speech_recognition_message_mapping_div').hide();
         $('#speech_recognition_language_div').hide();
+        $('#speech_recognition_ptt_div').hide();
         return;
     }
 
@@ -303,6 +304,8 @@ function loadSttProvider(provider) {
         $('#microphone_button').off('click');
         $('#microphone_button').hide();
     }
+
+    $('#speech_recognition_ptt_div').toggle(sttProviderName != 'Streaming');
 }
 
 function onSttLanguageChange() {
@@ -336,11 +339,20 @@ const defaultSettings = {
     messageMappingText: '',
     messageMapping: [],
     messageMappingEnabled: false,
+    /**
+     * @type {KeyCombo} Push-to-talk key combo
+     */
+    ptt: null,
 };
 
 function loadSettings() {
     if (Object.keys(extension_settings.speech_recognition).length === 0) {
         Object.assign(extension_settings.speech_recognition, defaultSettings);
+    }
+    for (const key in defaultSettings) {
+        if (extension_settings.speech_recognition[key] === undefined) {
+            extension_settings.speech_recognition[key] = defaultSettings[key];
+        }
     }
     $('#speech_recognition_enabled').prop('checked', extension_settings.speech_recognition.enabled);
     $('#speech_recognition_message_mode').val(extension_settings.speech_recognition.messageMode);
@@ -350,6 +362,7 @@ function loadSettings() {
     }
 
     $('#speech_recognition_message_mapping_enabled').prop('checked', extension_settings.speech_recognition.messageMappingEnabled);
+    $('#speech_recognition_ptt').val(extension_settings.speech_recognition.ptt ? formatPushToTalkKey(extension_settings.speech_recognition.ptt) : '');
 }
 
 async function onMessageModeChange() {
@@ -411,6 +424,143 @@ async function convertAudioBufferToWavBlob(audioBuffer) {
             config: { sampleRate: audioBuffer.sampleRate },
         });
     });
+}
+
+/**
+ * @typedef {object} KeyCombo
+ * @property {string} key
+ * @property {boolean} ctrl
+ * @property {boolean} alt
+ * @property {boolean} shift
+ * @property {boolean} meta
+ */
+
+/**
+ * Convert a native keyboard event to a key combo object.
+ * @param {KeyboardEvent} event Native keyboard event
+ * @returns {KeyCombo} Key combo object
+ */
+function keyboardEventToKeyCombo(event) {
+    return {
+        code: event.code,
+        ctrl: event.ctrlKey,
+        alt: event.altKey,
+        shift: event.shiftKey,
+        meta: event.metaKey,
+    };
+}
+
+/**
+ * Key labels for Windows.
+ * @type {Record<string, string>}
+ */
+const WINDOWS_LABELS = {
+    ctrl: 'Ctrl',
+    alt: 'Alt',
+    shift: 'Shift',
+    meta: 'Win',
+};
+
+/**
+ * Key labels for macOS.
+ * @type {Record<string, string>}
+ */
+const MAC_LABELS = {
+    ctrl: '⌃',
+    alt: '⌥',
+    shift: '⇧',
+    meta: '⌘',
+};
+
+/**
+ * Key labels for Linux.
+ * @type {Record<string, string>}
+ */
+const LINUX_LABELS = {
+    ctrl: 'Ctrl',
+    alt: 'Alt',
+    shift: 'Shift',
+    meta: 'Meta',
+};
+
+/**
+ * Gets the key labels for the current user agent.
+ * @returns {Record<string, string>}
+ */
+function getLabelsForUserAgent() {
+    const userAgent = navigator.userAgent;
+    if (userAgent.includes('Macintosh')) {
+        return MAC_LABELS;
+    } else if (userAgent.includes('Windows')) {
+        return WINDOWS_LABELS;
+    } else {
+        return LINUX_LABELS;
+    }
+}
+
+/**
+ * Format a key combo object as a string.
+ * @param {KeyCombo} key Key combo object
+ * @returns {string} String representation of the key combo
+ */
+function formatPushToTalkKey(key) {
+    const labels = getLabelsForUserAgent();
+    const parts = [];
+    if (key.ctrl) {
+        parts.push(labels.ctrl);
+    }
+    if (key.alt) {
+        parts.push(labels.alt);
+    }
+    if (key.shift) {
+        parts.push(labels.shift);
+    }
+    if (key.meta) {
+        parts.push(labels.meta);
+    }
+    parts.push(key.code);
+    return parts.join(' + ');
+}
+
+/**
+ * Check if a key combo object matches a keyboard event.
+ * @param {KeyCombo} keyCombo Key combo object
+ * @param {KeyboardEvent} event Original event
+ * @returns
+ */
+function isKeyComboMatch(keyCombo, event) {
+    return keyCombo.code === event.code
+        && keyCombo.ctrl === event.ctrlKey
+        && keyCombo.alt === event.altKey
+        && keyCombo.shift === event.shiftKey
+        && keyCombo.meta === event.metaKey;
+}
+
+/**
+ * Check if push-to-talk is enabled.
+ * @returns {boolean} True if push-to-talk is enabled
+ */
+function isPushToTalkEnabled(){
+    return extension_settings.speech_recognition.ptt !== null && sttProviderName !== 'Streaming' && sttProviderName !== 'None';
+}
+
+/**
+ * Event handler for push-to-talk start.
+ * @param {KeyboardEvent} event Event
+ */
+function processPushToTalkStart(event) {
+    // Push-to-talk not enabled
+    if (!isPushToTalkEnabled()) {
+        return;
+    }
+
+    const key = extension_settings.speech_recognition.ptt;
+
+    // Key combo match
+    if (isKeyComboMatch(key, event)) {
+        console.debug(DEBUG_PREFIX + 'Push-to-talk key pressed');
+        $('#microphone_button').trigger('click');
+    }
 }
 
 $(document).ready(function () {
@@ -491,6 +641,11 @@ $(document).ready(function () {
                             <option value="cy">Welsh</option>
                         </select>
                     </div>
+                    <div id="speech_recognition_ptt_div">
+                        <span>Recording Hotkey</span>
+                        <i title="Press the designated keystroke to start the recording. Press again to stop. Only works if a browser tab is in focus." class="fa-solid fa-info-circle opacity50p"></i>
+                        <input readonly type="text" id="speech_recognition_ptt" class="text_pole" placeholder="Click to set push-to-talk key">
+                    </div>
                     <div id="speech_recognition_message_mode_div">
                         <span>Message Mode</span> </br>
                         <select id="speech_recognition_message_mode">
@@ -525,6 +680,42 @@ $(document).ready(function () {
         $('#speech_recognition_message_mapping').on('change', onMessageMappingChange);
         $('#speech_recognition_language').on('change', onSttLanguageChange);
         $('#speech_recognition_message_mapping_enabled').on('click', onMessageMappingEnabledClick);
+        $('#speech_recognition_ptt').on('focus', function () {
+            if (this instanceof HTMLInputElement) {
+                this.value = 'Enter a key combo. "Escape" to clear';
+                $(this).off('keydown').on('keydown', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    if (e.key === 'Meta' || e.key === 'Alt' || e.key === 'Shift' || e.key === 'Control') {
+                        return;
+                    }
+
+                    if (e.key === 'Escape') {
+                        extension_settings.speech_recognition.ptt = null;
+                        saveSettingsDebounced();
+                        return this.blur();
+                    }
+
+                    const keyCombo = keyboardEventToKeyCombo(e);
+                    extension_settings.speech_recognition.ptt = keyCombo;
+                    saveSettingsDebounced();
+                    return this.blur();
+                });
+            }
+        });
+        $('#speech_recognition_ptt').on('blur', function () {
+            if (this instanceof HTMLInputElement) {
+                $(this).off('keydown');
+                if (extension_settings.speech_recognition.ptt) {
+                    this.value = formatPushToTalkKey(extension_settings.speech_recognition.ptt);
+                } else {
+                    this.value = '';
+                }
+            }
+        });
+
+        document.body.addEventListener('keydown', processPushToTalkStart);
 
         const $button = $('<div id="microphone_button" class="fa-solid fa-microphone speech-toggle" title="Click to speak"></div>');
         // For versions before 1.10.10
