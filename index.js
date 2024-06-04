@@ -11,6 +11,7 @@ import { WhisperOpenAISttProvider } from './whisper-openai.js';
 import { WhisperLocalSttProvider } from './whisper-local.js';
 import { BrowserSttProvider } from './browser.js';
 import { StreamingSttProvider } from './streaming.js';
+import { KoboldCppSttProvider } from './koboldcpp.js';
 import { VAD } from './vad.js'
 export { MODULE_NAME };
 
@@ -23,6 +24,7 @@ let inApiCall = false;
 let sttProviders = {
     None: null,
     Browser: BrowserSttProvider,
+    'KoboldCpp': KoboldCppSttProvider,
     'Whisper (Extras)': WhisperExtrasSttProvider,
     'Whisper (OpenAI)': WhisperOpenAISttProvider,
     'Whisper (Local)': WhisperLocalSttProvider,
@@ -323,7 +325,8 @@ function loadSttProvider(provider) {
         $('#microphone_button').show();
     }
 
-    if (sttProviderName == 'Vosk' || sttProviderName == 'Whisper (OpenAI)' || sttProviderName == 'Whisper (Extras)' || sttProviderName == 'Whisper (Local)') {
+    const nonStreamingProviders = ['Vosk', 'Whisper (OpenAI)', 'Whisper (Extras)', 'Whisper (Local)', 'KoboldCpp'];
+    if (nonStreamingProviders.includes(sttProviderName)) {
         sttProvider.loadSettings(extension_settings.speech_recognition[sttProviderName]);
         loadNavigatorAudioRecording();
         $('#microphone_button').show();
