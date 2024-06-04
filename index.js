@@ -11,6 +11,7 @@ import { WhisperOpenAISttProvider } from './whisper-openai.js';
 import { WhisperLocalSttProvider } from './whisper-local.js';
 import { BrowserSttProvider } from './browser.js';
 import { StreamingSttProvider } from './streaming.js';
+import { VAD } from './vad.js'
 export { MODULE_NAME };
 
 const MODULE_NAME = 'Speech Recognition';
@@ -154,12 +155,14 @@ async function processTranscript(transcript) {
             }
 
             console.debug(DEBUG_PREFIX + 'no message mapping found, processing transcript as normal message');
+            const textarea = $('#send_textarea');
 
             switch (messageMode) {
                 case 'auto_send':
-                    $('#send_textarea').val(''); // clear message area to avoid double message
+                    // clear message area to avoid double message
+                    textarea.val('')[0].dispatchEvent(new Event('input', { bubbles: true }));
 
-                    sendMessageAsUser(transcriptFormatted);
+                    await sendMessageAsUser(transcriptFormatted);
                     await getContext().generate();
 
                     $('#debug_output').text('<SST-module DEBUG>: message sent: "' + transcriptFormatted + '"');
@@ -167,12 +170,13 @@ async function processTranscript(transcript) {
 
                 case 'replace':
                     console.debug(DEBUG_PREFIX + 'Replacing message');
-                    $('#send_textarea').val(transcriptFormatted);
+                    textarea.val(transcriptFormatted);
                     break;
 
                 case 'append':
                     console.debug(DEBUG_PREFIX + 'Appending message');
-                    $('#send_textarea').val($('#send_textarea').val() + ' ' + transcriptFormatted);
+                    const existingMessage = textarea.val();
+                    textarea.val(existingMessage + ' ' + transcriptFormatted);
                     break;
 
                 default:
@@ -192,24 +196,49 @@ async function processTranscript(transcript) {
 function loadNavigatorAudioRecording() {
     if (navigator.mediaDevices.getUserMedia) {
         console.debug(DEBUG_PREFIX + ' getUserMedia supported by browser.');
+        const micButton = $('#microphone_button');
 
         let onSuccess = function (stream) {
+            const audioContext = new AudioContext({ sampleRate: 16000 });
+            const source = audioContext.createMediaStreamSource(stream);
+            const settings = {
+                source: source,
+                voice_start: function () {
+                    if (!audioRecording && extension_settings.speech_recognition.voiceActivationEnabled) {
+                        console.debug(DEBUG_PREFIX + 'Voice started');
+                        if (micButton.is(':visible')) {
+                            micButton.trigger('click');
+                        }
+                    }
+                },
+                voice_stop: function () {
+                    if (audioRecording && extension_settings.speech_recognition.voiceActivationEnabled) {
+                        console.debug(DEBUG_PREFIX + 'Voice stopped');
+                        if (micButton.is(':visible')) {
+                            micButton.trigger('click');
+                        }
+                    }
+                },
+            };
+
+            new VAD(settings);
+
             const mediaRecorder = new MediaRecorder(stream);
 
-            $('#microphone_button').off('click').on('click', function () {
+            micButton.off('click').on('click', function () {
                 if (!audioRecording) {
                     mediaRecorder.start();
                     console.debug(mediaRecorder.state);
                     console.debug('recorder started');
                     audioRecording = true;
-                    $('#microphone_button').toggleClass('fa-microphone fa-microphone-slash');
+                    micButton.toggleClass('fa-microphone fa-microphone-slash');
                 }
                 else {
                     mediaRecorder.stop();
                     console.debug(mediaRecorder.state);
                     console.debug('recorder stopped');
                     audioRecording = false;
-                    $('#microphone_button').toggleClass('fa-microphone fa-microphone-slash');
+                    micButton.toggleClass('fa-microphone fa-microphone-slash');
                 }
             });
 
@@ -273,6 +302,7 @@ function loadSttProvider(provider) {
         $('#speech_recognition_message_mapping_div').hide();
         $('#speech_recognition_language_div').hide();
         $('#speech_recognition_ptt_div').hide();
+        $('#speech_recognition_voice_activation_enabled_div').hide();
         return;
     }
 
@@ -306,6 +336,7 @@ function loadSttProvider(provider) {
     }
 
     $('#speech_recognition_ptt_div').toggle(sttProviderName != 'Streaming');
+    $('#speech_recognition_voice_activation_enabled_div').toggle(sttProviderName != 'Streaming');
 }
 
 function onSttLanguageChange() {
@@ -339,6 +370,7 @@ const defaultSettings = {
     messageMappingText: '',
     messageMapping: [],
     messageMappingEnabled: false,
+    voiceActivationEnabled: false,
     /**
      * @type {KeyCombo} Push-to-talk key combo
      */
@@ -363,6 +395,7 @@ function loadSettings() {
 
     $('#speech_recognition_message_mapping_enabled').prop('checked', extension_settings.speech_recognition.messageMappingEnabled);
     $('#speech_recognition_ptt').val(extension_settings.speech_recognition.ptt ? formatPushToTalkKey(extension_settings.speech_recognition.ptt) : '');
+    $('#speech_recognition_voice_activation_enabled').prop('checked', extension_settings.speech_recognition.voiceActivationEnabled);
 }
 
 async function onMessageModeChange() {
@@ -402,6 +435,11 @@ async function onMessageMappingChange() {
 
 async function onMessageMappingEnabledClick() {
     extension_settings.speech_recognition.messageMappingEnabled = $('#speech_recognition_message_mapping_enabled').is(':checked');
+    saveSettingsDebounced();
+}
+
+function onVoiceActivationEnabledChange() {
+    extension_settings.speech_recognition.voiceActivationEnabled = !!$('#speech_recognition_voice_activation_enabled').prop('checked');
     saveSettingsDebounced();
 }
 
@@ -540,9 +578,11 @@ function isKeyComboMatch(keyCombo, event) {
  * Check if push-to-talk is enabled.
  * @returns {boolean} True if push-to-talk is enabled
  */
-function isPushToTalkEnabled(){
+function isPushToTalkEnabled() {
     return extension_settings.speech_recognition.ptt !== null && sttProviderName !== 'Streaming' && sttProviderName !== 'None';
 }
+
+let lastPressTime = 0;
 
 /**
  * Event handler for push-to-talk start.
@@ -556,10 +596,35 @@ function processPushToTalkStart(event) {
 
     const key = extension_settings.speech_recognition.ptt;
 
-    // Key combo match
-    if (isKeyComboMatch(key, event)) {
+    // Key combo match - toggle recording
+    if (isKeyComboMatch(key, event) && !event.repeat) {
         console.debug(DEBUG_PREFIX + 'Push-to-talk key pressed');
+        lastPressTime = Date.now();
         $('#microphone_button').trigger('click');
+    }
+}
+
+/**
+ * Event handler for push-to-talk end.
+ * @param {KeyboardEvent} event Event
+ */
+function processPushToTalkEnd(event) {
+    // Push-to-talk not enabled
+    if (!isPushToTalkEnabled()) {
+        return;
+    }
+
+    /** @type {KeyCombo} */
+    const key = extension_settings.speech_recognition.ptt;
+
+    // Key combo match (without modifier keys)
+    if (key.code === event.code) {
+        console.debug(DEBUG_PREFIX + 'Push-to-talk key released');
+
+        // If the key was held for more than 500ms and still recording, stop recording
+        if (Date.now() - lastPressTime > 500 && audioRecording) {
+            $('#microphone_button').trigger('click');
+        }
     }
 }
 
@@ -646,6 +711,12 @@ $(document).ready(function () {
                         <i title="Press the designated keystroke to start the recording. Press again to stop. Only works if a browser tab is in focus." class="fa-solid fa-info-circle opacity50p"></i>
                         <input readonly type="text" id="speech_recognition_ptt" class="text_pole" placeholder="Click to set push-to-talk key">
                     </div>
+                    <div id="speech_recognition_voice_activation_enabled_div" title="Automatically start and stop recording when you start and stop speaking.">
+                        <label class="checkbox_label" for="speech_recognition_voice_activation_enabled">
+                            <input type="checkbox" id="speech_recognition_voice_activation_enabled" name="speech_recognition_voice_activation_enabled">
+                            <small>Enable activation by voice</small>
+                        </label>
+                    </div>
                     <div id="speech_recognition_message_mode_div">
                         <span>Message Mode</span> </br>
                         <select id="speech_recognition_message_mode">
@@ -680,6 +751,7 @@ $(document).ready(function () {
         $('#speech_recognition_message_mapping').on('change', onMessageMappingChange);
         $('#speech_recognition_language').on('change', onSttLanguageChange);
         $('#speech_recognition_message_mapping_enabled').on('click', onMessageMappingEnabledClick);
+        $('#speech_recognition_voice_activation_enabled').on('change', onVoiceActivationEnabledChange);
         $('#speech_recognition_ptt').on('focus', function () {
             if (this instanceof HTMLInputElement) {
                 this.value = 'Enter a key combo. "Escape" to clear';
@@ -716,6 +788,7 @@ $(document).ready(function () {
         });
 
         document.body.addEventListener('keydown', processPushToTalkStart);
+        document.body.addEventListener('keyup', processPushToTalkEnd);
 
         const $button = $('<div id="microphone_button" class="fa-solid fa-microphone speech-toggle" title="Click to speak"></div>');
         // For versions before 1.10.10
