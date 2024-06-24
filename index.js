@@ -794,7 +794,7 @@ $(document).ready(function () {
         document.body.addEventListener('keydown', processPushToTalkStart);
         document.body.addEventListener('keyup', processPushToTalkEnd);
 
-        const $button = $('<div id="microphone_button" class="fa-solid fa-microphone speech-toggle" title="Click to speak"></div>');
+        const $button = $('<div id="microphone_button" class="fa-solid fa-microphone speech-toggle interactable" tabindex="0" title="Click to speak"></div>');
         // For versions before 1.10.10
         if ($('#send_but_sheld').length == 0) {
             $('#rightSendForm').prepend($button);
