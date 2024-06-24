@@ -743,7 +743,8 @@ $(document).ready(function () {
             </div>
         </div>
         `;
-        $('#extensions_settings').append(settingsHtml);
+        const getContainer = () => $(document.getElementById('stt_container') ?? document.getElementById('extensions_settings'));
+        getContainer().append(settingsHtml);
         $('#speech_recognition_provider_settings').on('input', onSttProviderSettingsInput);
         for (const provider in sttProviders) {
             $('#speech_recognition_provider').append($('<option />').val(provider).text(provider));
