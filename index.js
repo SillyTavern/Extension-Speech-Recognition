@@ -142,16 +142,19 @@ async function processTranscript(transcript) {
 
             // Check message mapping
             if (extension_settings.speech_recognition.messageMappingEnabled) {
-                console.debug(DEBUG_PREFIX + 'Start searching message mapping into:', transcriptRaw);
-                for (const key in extension_settings.speech_recognition.messageMapping) {
-                    console.debug(DEBUG_PREFIX + 'message mapping searching: ', key, '=>', extension_settings.speech_recognition.messageMapping[key]);
-                    if (transcriptRaw.includes(key)) {
-                        var message = extension_settings.speech_recognition.messageMapping[key];
-                        console.debug(DEBUG_PREFIX + 'message mapping found: ', key, '=>', extension_settings.speech_recognition.messageMapping[key]);
-                        $('#send_textarea').val(message);
+                // also check transcriptFormatted for non ascii keys
+                for (const s of [transcriptRaw, transcriptFormatted]) {
+                    console.debug(DEBUG_PREFIX + 'Start searching message mapping into:', s);
+                    for (const key in extension_settings.speech_recognition.messageMapping) {
+                        console.debug(DEBUG_PREFIX + 'message mapping searching: ', key, '=>', extension_settings.speech_recognition.messageMapping[key]);
+                        if (s.includes(key)) {
+                            var message = extension_settings.speech_recognition.messageMapping[key];
+                            console.debug(DEBUG_PREFIX + 'message mapping found: ', key, '=>', extension_settings.speech_recognition.messageMapping[key]);
+                            $('#send_textarea').val(message);
 
-                        if (messageMode == 'auto_send') await getContext().generate();
-                        return;
+                            if (messageMode == 'auto_send') await getContext().generate();
+                            return;
+                        }
                     }
                 }
             }
