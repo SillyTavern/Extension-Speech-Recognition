@@ -67,7 +67,7 @@ class WhisperLocalSttProvider {
 
     async processAudio(audioBlob) {
         const audio = await getBase64Async(audioBlob);
-        const language = this.settings.language || null;
+        const lang = this.settings.language || null;
         const model = this.settings.model || 'Xenova/whisper-base.en';
 
         // It's not a JSON, let fetch set the content type
@@ -75,7 +75,7 @@ class WhisperLocalSttProvider {
         const apiResult = await fetch('/api/speech/recognize', {
             method: 'POST',
             headers: getRequestHeaders(),
-            body: JSON.stringify({ audio, language, model }),
+            body: JSON.stringify({ audio, lang, model }),
         });
 
         if (!apiResult.ok) {
