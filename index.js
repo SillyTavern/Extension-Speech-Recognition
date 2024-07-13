@@ -357,7 +357,7 @@ function loadSttProvider(provider) {
  */
 function activateMicIcon(micButton) {
     micButton.toggleClass('fa-microphone fa-microphone-slash');
-    micButton.prop('title', 'Click to end speak');
+    micButton.prop('title', 'Click to end and transcribe');
 }
 
 /**
