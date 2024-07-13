@@ -3,6 +3,7 @@
 // First version by Cohee#1207
 // Adapted by Tony-sama
 
+import { activateMicIcon, deactivateMicIcon } from './index.js';
 export { BrowserSttProvider };
 
 const DEBUG_PREFIX = '<Speech Recognition module (Browser)> ';
@@ -87,7 +88,7 @@ class BrowserSttProvider {
     onSettingsChange() {
         // Used when provider settings are updated from UI
         this.settings.language = $('#speech_recognition_browser_provider_language').val();
-        console.debug(DEBUG_PREFIX + 'Change language to',this.settings.language);
+        console.debug(DEBUG_PREFIX + 'Change language to', this.settings.language);
         this.loadSettings(this.settings);
     }
 
@@ -121,8 +122,8 @@ class BrowserSttProvider {
         // Initialise as defaultSettings
         this.settings = this.defaultSettings;
 
-        for (const key in settings){
-            if (key in this.settings){
+        for (const key in settings) {
+            if (key in this.settings) {
                 this.settings[key] = settings[key];
             } else {
                 throw `Invalid setting passed to Speech recogniton extension (browser): ${key}`;
@@ -211,16 +212,19 @@ class BrowserSttProvider {
 
         recognition.onend = function () {
             listening = false;
-            button.toggleClass('fa-microphone fa-microphone-slash');
+            console.debug(DEBUG_PREFIX + 'recorder stopped');
+            deactivateMicIcon(button);
+
             const newText = textarea.val().substring(initialText.length);
-            textarea.val(textarea.val().substring(0,initialText.length));
+            textarea.val(textarea.val().substring(0, initialText.length));
             processTranscript(newText);
 
         };
 
         recognition.onstart = function () {
             initialText = textarea.val();
-            button.toggleClass('fa-microphone fa-microphone-slash');
+            console.debug(DEBUG_PREFIX + 'recorder started');
+            activateMicIcon(button);
 
             if ($('#speech_recognition_message_mode').val() == 'replace') {
                 textarea.val('');

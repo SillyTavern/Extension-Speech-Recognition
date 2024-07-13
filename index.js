@@ -14,6 +14,7 @@ import { StreamingSttProvider } from './streaming.js';
 import { KoboldCppSttProvider } from './koboldcpp.js';
 import { VAD } from './vad.js'
 export { MODULE_NAME };
+export { activateMicIcon, deactivateMicIcon };
 
 const MODULE_NAME = 'Speech Recognition';
 const DEBUG_PREFIX = '<Speech Recognition module> ';
@@ -38,6 +39,9 @@ let sttProviderName = 'None';
 let audioRecording = false;
 const constraints = { audio: { sampleSize: 16, channelCount: 1, sampleRate: 16000 } };
 let audioChunks = [];
+
+/** @type {MediaRecorder} */
+let mediaRecorder = null;
 
 async function moduleWorker() {
     if (sttProviderName != 'Streaming') {
@@ -228,22 +232,22 @@ function loadNavigatorAudioRecording() {
 
             new VAD(settings);
 
-            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder = new MediaRecorder(stream);
 
             micButton.off('click').on('click', function () {
                 if (!audioRecording) {
                     mediaRecorder.start();
-                    console.debug(mediaRecorder.state);
-                    console.debug('recorder started');
+                    console.debug(DEBUG_PREFIX + mediaRecorder.state);
+                    console.debug(DEBUG_PREFIX + 'recorder started');
                     audioRecording = true;
-                    micButton.toggleClass('fa-microphone fa-microphone-slash');
+                    activateMicIcon(micButton);
                 }
                 else {
                     mediaRecorder.stop();
-                    console.debug(mediaRecorder.state);
-                    console.debug('recorder stopped');
+                    console.debug(DEBUG_PREFIX + mediaRecorder.state);
+                    console.debug(DEBUG_PREFIX + 'recorder stopped');
                     audioRecording = false;
-                    micButton.toggleClass('fa-microphone fa-microphone-slash');
+                    deactivateMicIcon(micButton);
                 }
             });
 
@@ -301,6 +305,8 @@ function loadSttProvider(provider) {
 
     $('#speech_recognition_provider').val(sttProviderName);
 
+    stopCurrentProvider();
+
     if (sttProviderName == 'None') {
         $('#microphone_button').hide();
         $('#speech_recognition_message_mode_div').hide();
@@ -343,6 +349,42 @@ function loadSttProvider(provider) {
 
     $('#speech_recognition_ptt_div').toggle(sttProviderName != 'Streaming');
     $('#speech_recognition_voice_activation_enabled_div').toggle(sttProviderName != 'Streaming');
+}
+
+/**
+ * Set the microphone icon as active. Must be called when recording starts.
+ * @param {JQuery} micButton - The jQuery object of the microphone button.
+ */
+function activateMicIcon(micButton) {
+    micButton.toggleClass('fa-microphone fa-microphone-slash');
+    micButton.prop('title', 'Click to end speak');
+}
+
+/**
+ * Set the microphone icon as inactive. Must be called when recording ends.
+ * @param {JQuery} micButton - The jQuery object of the microphone button.
+ */
+function deactivateMicIcon(micButton) {
+    micButton.toggleClass('fa-microphone fa-microphone-slash');
+    micButton.prop('title', 'Click to speak');
+}
+
+function stopCurrentProvider() {
+    console.debug(DEBUG_PREFIX + 'stop current provider');
+    if (mediaRecorder) {
+        mediaRecorder.onstop = null;
+        mediaRecorder.ondataavailable = null;
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        mediaRecorder.stop();
+        mediaRecorder = null;
+    }
+    if (audioRecording) {
+        audioRecording = false;
+        const micButton = $('#microphone_button');
+        if (micButton.is(':visible')) {
+            deactivateMicIcon(micButton);
+        }
+    }
 }
 
 function onSttLanguageChange() {
