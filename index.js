@@ -40,6 +40,7 @@ let audioRecording = false;
 const constraints = { audio: { sampleSize: 16, channelCount: 1, sampleRate: 16000 } };
 let audioChunks = [];
 
+/** @type {MediaRecorder} */
 let mediaRecorder = null;
 
 async function moduleWorker() {
@@ -370,19 +371,20 @@ function deactivateMicIcon(micButton) {
 
 function stopCurrentProvider() {
     console.debug(DEBUG_PREFIX + 'stop current provider');
-    if (mediaRecorder != null) {
+    if (mediaRecorder) {
         mediaRecorder.onstop = null;
         mediaRecorder.ondataavailable = null;
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        mediaRecorder.stop();
+        mediaRecorder = null;
     }
     if (audioRecording) {
         audioRecording = false;
-        mediaRecorder?.stop();
         const micButton = $('#microphone_button');
         if (micButton.is(':visible')) {
             deactivateMicIcon(micButton);
         }
     }
-    mediaRecorder = null;
 }
 
 function onSttLanguageChange() {
