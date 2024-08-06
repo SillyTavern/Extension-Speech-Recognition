@@ -208,7 +208,7 @@ function loadNavigatorAudioRecording() {
         const micButton = $('#microphone_button');
 
         let onSuccess = function (stream) {
-            const audioContext = new AudioContext({ sampleRate: 16000 });
+            const audioContext = new AudioContext();
             const source = audioContext.createMediaStreamSource(stream);
             const settings = {
                 source: source,
