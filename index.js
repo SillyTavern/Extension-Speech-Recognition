@@ -417,6 +417,12 @@ function deactivateMicIcon(micButton) {
 
 function stopCurrentProvider() {
     console.debug(DEBUG_PREFIX + 'stop current provider');
+    
+    // Clean up the current provider if it has a cleanup method
+    if (sttProvider && typeof sttProvider.cleanup === 'function') {
+        sttProvider.cleanup();
+    }
+    
     if (mediaRecorder) {
         mediaRecorder.onstop = null;
         mediaRecorder.ondataavailable = null;
