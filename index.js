@@ -18,6 +18,7 @@ import { MistralSttProvider } from './mistral.js';
 import { ChutesSttProvider } from './chutes.js';
 import { ZaiSttProvider } from './zai.js';
 import { ElevenLabsSttProvider } from './elevenlabs.js';
+import { OpenAICompatibleSttProvider } from './openai-compatible.js';
 export { MODULE_NAME };
 export { activateMicIcon, deactivateMicIcon };
 
@@ -36,6 +37,7 @@ let sttProviders = {
     'KoboldCpp': KoboldCppSttProvider,
     'MistralAI': MistralSttProvider,
     'OpenAI': OpenAISttProvider,
+    'OpenAI Compatible': OpenAICompatibleSttProvider,
     'Whisper (Extras)': WhisperExtrasSttProvider,
     'Whisper (Local)': WhisperLocalSttProvider,
     'Z.AI': ZaiSttProvider,
